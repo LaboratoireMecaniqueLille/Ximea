@@ -8,7 +8,7 @@ import SimpleITK as sitk
 from matplotlib.widgets import Slider, Button
 rcParams['font.family'] = 'serif'
 #ps aux | grep python 					 # KILL python process ...
-#kill -9 "insert here the python thread number"		 # ... try it if ximea won't open again.
+#kill -9 insert_here_the_python_thread_number		 # ... try it if ximea won't open again.
 plt.close('all')
 
 ############################## Parameters
@@ -16,27 +16,33 @@ nbr_images=1000 # enter here the numer of images you need to save.
 save_directory="/home/corentin/Bureau/ximea/" # path to save repository. BE AWARE that this scripts will erase previous images without regrets or remorse.
 exposure= 3000 # exposition time, in microseconds
 gain=1 
+height=2048 # reducing this one allows one to increase the FPS
+width=2048 # doesn't work for this one
+data_format=6 #0=8 bits, 1=16(10)bits, 5=8bits RAW, 6=16(10)bits RAW  
 external_trigger= False #set to True if you trig with external source (arduino...). BE AWARE there is a 10s waiting time for the ximea, meaning if you wait more that 10 sec to trigg, ximea will return an error and stop working.
 set_FPS=False # set to True if you want to manually set the frame rate. It has 0.1 FPS precison @88FPS . If you need more precision, please use external trigger with arduino.
 FPS=50 # set here the frame rate you need. This parameter will only work if set_FPS =True.
 ##############################
 
-cap = cv2.VideoCapture(cv2.CAP_XIAPI) # open the ximea device
+#cap = cv2.VideoCapture(cv2.CAP_XIAPI) # open the ximea device
+cap = cv2.VideoCapture(1100) # open the ximea device Ximea devices start at 1100. 1100 => device 0, 1101 => device 1 
 
 if external_trigger==True:  # this condition activate the trigger mode
   cap.set(cv2.CAP_PROP_XI_TRG_SOURCE,1)
   cap.set(cv2.CAP_PROP_XI_GPI_SELECTOR,1)
   cap.set(cv2.CAP_PROP_XI_GPI_MODE,1)
 
+#cap.set(cv2.CAP_PROP_XI_DATA_FORMAT,data_format) #0=8 bits, 1=16(10)bits, 5=8bits RAW, 6=16(10)bits RAW  
+#cap.set(cv2.CAP_PROP_XI_OUTPUT_DATA_BIT_DEPTH,10)
+cap.set(cv2.CAP_PROP_XI_DATA_PACKING,1)
+
 
 cap.set(cv2.CAP_PROP_XI_AEAG,0)#auto gain auto exposure
-cap.set(cv2.CAP_PROP_XI_DATA_FORMAT,0) #0=8 bits, 1=16(10)bits, 5=8bits RAW, 6=16(10)bits RAW  
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT,2048); # reducing this one allows one to increase the FPS
-cap.set(cv2.CAP_PROP_FRAME_WIDTH,2048);  # doesn't work for this one
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT,height); # reducing this one allows one to increase the FPS
+cap.set(cv2.CAP_PROP_FRAME_WIDTH,width);  # doesn't work for this one
 #cap.set(cv2.CAP_PROP_XI_DOWNSAMPLING,0) # activate this one if you need to downsample your images, i.e if you need a very high FPS and other options are not enough
 #print cap.get(cv2.CAP_PROP_FRAME_WIDTH)
 #print cap.get(cv2.CAP_PROP_FRAME_HEIGHT); 
-
 
 cap.set(cv2.CAP_PROP_EXPOSURE,exposure) # setting up exposure
 cap.set(cv2.CAP_PROP_GAIN,gain) #setting up gain
@@ -92,7 +98,7 @@ def REC(event): # when called, read "nbr_images" and save them as .tiff in save_
   last_t=0
   i=0
   while(i<nbr_images):
-    if set_FPS==True and last_t!=0:
+    if set_FPS==True and last_t!=0: #This loop is used to set the FPS
       while (time.time()-last_t) < 1./FPS:
 	indent=True
     last_t=time.time()
@@ -114,7 +120,7 @@ def get_frame(i):
   im.set_data(frame) #change previous image by new frame
   im.set_clim([frame.min(), frame.max()]) # re-arrange colorbar limits
   histogram=cv2.calcHist([frame],[0],None,[len(x)],[0,max(x)]) # evalute new histogram
-  histogram=np.sqrt(histogram)
+  histogram=np.sqrt(histogram) # this operation aims to improve the histogram visibility (avoid flattening)
   li.set_ydata((histogram-histogram.min())/(histogram.max()-histogram.min())) # change previous histogram
   return cax, axim , axhist # return the values that need to be updated
 
